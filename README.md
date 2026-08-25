@@ -9,6 +9,7 @@ A read-only X API monitor for Hot Chips 38. It polls recent search, stores norma
 - No token copies. By default it reads the current access token from the dedicated local.ai bot's owner-only SQLite file and never refreshes it.
 - Per-lane `since_id` cursors avoid re-fetching old results.
 - `daily_resource_ceiling` stops collection after 500 returned Post resources per UTC day. X's exact rates live in the Developer Console; the public pricing docs do not currently print a per-Post search rate.
+- If X returns its monthly spend-cap error, the collector records a paused state through the next monthly boundary, exits cleanly, and keeps publishing the existing registry instead of retrying every five minutes.
 
 ## Run
 

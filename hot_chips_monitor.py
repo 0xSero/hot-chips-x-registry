@@ -26,6 +26,10 @@ import urllib.request
 ROOT = Path(__file__).resolve().parent
 STATE_DIR = ROOT / "state"
 OUTPUT_DIR = ROOT / "docs"
+
+
+class SpendCapReached(RuntimeError):
+    """X rejected reads because the developer account reached its spend cap."""
 DB_PATH = STATE_DIR / "hot-chips.sqlite3"
 
 
@@ -175,6 +179,10 @@ def connect_db() -> sqlite3.Connection:
           updated INTEGER NOT NULL DEFAULT 0,
           detail TEXT
         );
+        CREATE TABLE IF NOT EXISTS meta (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
         """
     )
     connection.commit()
@@ -230,6 +238,8 @@ def api_get(url: str, token: str) -> tuple[dict, dict[str, str]]:
         if error.code == 429:
             reset = error.headers.get("x-rate-limit-reset", "unknown")
             raise RuntimeError(f"X rate limit reached; reset={reset}") from None
+        if error.code == 403 and "spend cap has been reached" in body.lower():
+            raise SpendCapReached("X monthly spend cap reached") from None
         raise RuntimeError(f"X API returned HTTP {error.code}: {body[:800]}") from None
 
 
@@ -377,7 +387,6 @@ def search_url(config: dict, lane: dict, since_id: str | None, allowed: int) -> 
 
 
 def collect(config: dict, connection: sqlite3.Connection) -> dict:
-    token = load_access_token(config)
     ceiling = int(config["x"]["daily_resource_ceiling"])
     run_started = iso_now()
     cursor = connection.execute(
@@ -386,6 +395,16 @@ def collect(config: dict, connection: sqlite3.Connection) -> dict:
     run_id = cursor.lastrowid
     connection.commit()
     summary = {"run_id": run_id, "resources": 0, "inserted": 0, "updated": 0, "lanes": []}
+    blocked = connection.execute("SELECT value FROM meta WHERE key='provider_spend_blocked_until'").fetchone()
+    if blocked and blocked[0] > iso_now():
+        summary.update({"status": "spend-cap-paused", "blocked_until": blocked[0]})
+        connection.execute(
+            "UPDATE runs SET finished_at=?, status='spend-cap-paused', detail=? WHERE run_id=?",
+            (iso_now(), json.dumps({"blocked_until": blocked[0]}), run_id),
+        )
+        connection.commit()
+        return summary
+    token = load_access_token(config)
     try:
         for lane in config["x"]["lanes"]:
             used = get_daily_usage(connection)
@@ -422,6 +441,25 @@ def collect(config: dict, connection: sqlite3.Connection) -> dict:
             "UPDATE runs SET finished_at=?, status='ok', resources=?, inserted=?, updated=?, detail=? WHERE run_id=?",
             (iso_now(), summary["resources"], summary["inserted"], summary["updated"],
              json.dumps(summary["lanes"]), run_id),
+        )
+        connection.commit()
+        return summary
+    except SpendCapReached as error:
+        now = utc_now()
+        if now.month == 12:
+            blocked_until = dt.datetime(now.year + 1, 1, 1, tzinfo=dt.timezone.utc)
+        else:
+            blocked_until = dt.datetime(now.year, now.month + 1, 1, tzinfo=dt.timezone.utc)
+        blocked_iso = blocked_until.isoformat(timespec="seconds").replace("+00:00", "Z")
+        connection.execute(
+            "INSERT INTO meta (key,value) VALUES ('provider_spend_blocked_until',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (blocked_iso,),
+        )
+        summary.update({"status": "spend-cap-paused", "blocked_until": blocked_iso})
+        connection.execute(
+            "UPDATE runs SET finished_at=?, status='spend-cap-paused', resources=?, inserted=?, updated=?, detail=? WHERE run_id=?",
+            (iso_now(), summary["resources"], summary["inserted"], summary["updated"],
+             json.dumps({"error": str(error), "blocked_until": blocked_iso}), run_id),
         )
         connection.commit()
         return summary
