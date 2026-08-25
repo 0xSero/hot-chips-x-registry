@@ -24,5 +24,4 @@ PY
 /usr/bin/plutil -lint "$TARGET"
 /bin/launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
 /bin/launchctl bootstrap "$DOMAIN" "$TARGET"
-/bin/launchctl kickstart -k "$DOMAIN/$LABEL"
 /bin/launchctl print "$DOMAIN/$LABEL"
