@@ -525,6 +525,7 @@ def atomic_write(path: Path, content: str) -> None:
 
 def render_index(posts: list[dict], connection: sqlite3.Connection, config: dict) -> str:
     last_run = connection.execute("SELECT * FROM runs ORDER BY run_id DESC LIMIT 1").fetchone()
+    last_ok_run = connection.execute("SELECT finished_at FROM runs WHERE status='ok' ORDER BY run_id DESC LIMIT 1").fetchone()
     usage = get_daily_usage(connection)
     ceiling = int(config["x"]["daily_resource_ceiling"])
     high_signal = sum(1 for post in posts if post["relevance_score"] >= 35)
@@ -540,7 +541,7 @@ def render_index(posts: list[dict], connection: sqlite3.Connection, config: dict
             pass
     companies = sorted({company for post in posts for company in post["companies"]})
     products = sorted({product for post in posts for product in post["products"]})
-    generated = iso_now()
+    generated = last_ok_run["finished_at"] if last_ok_run and last_ok_run["finished_at"] else iso_now()
     options = lambda values: "".join(
         f'<option value="{html.escape(value)}">{html.escape(value)}</option>' for value in values
     )
@@ -625,7 +626,7 @@ def render_index(posts: list[dict], connection: sqlite3.Connection, config: dict
   </style>
 </head>
 <body>
-  <nav class="container"><div class="brand"><span class="brand-mark"></span>Hot Chips Registry</div><div class="nav-meta">UPDATED {html.escape(generated)}</div></nav>
+  <nav class="container"><div class="brand"><span class="brand-mark"></span>Hot Chips Registry</div><div class="nav-meta">DATA {html.escape(generated)} · {html.escape(last_status.upper())}</div></nav>
   <section class="hero container"><div class="kicker">HC38 / Public X Index / Collector {html.escape(last_status.upper())}</div><h1>Hardware launches, indexed.</h1>
     <p class="subtitle">A clean, read-only registry of chip announcements, architecture claims, benchmarks, and conference reporting from Hot Chips 2026.</p></section>
   <section class="stats-section"><div class="container"><div class="section-label">Registry stats</div><div class="stats" aria-label="Registry statistics">
