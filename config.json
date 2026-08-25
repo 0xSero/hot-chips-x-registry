@@ -1,0 +1,36 @@
+{
+  "conference": {
+    "name": "Hot Chips 38",
+    "timezone": "America/Los_Angeles",
+    "bootstrap_start_time": "2026-08-23T07:00:00Z",
+    "official_program_url": "https://hotchips.org/"
+  },
+  "x": {
+    "api_base": "https://api.x.com",
+    "token_sqlite": "/Users/sero/ai/local-ai-x-bot/state/bot.db",
+    "results_per_request": 50,
+    "daily_resource_ceiling": 500,
+    "lanes": [
+      {
+        "name": "hot-chips",
+        "query": "(\"Hot Chips\" OR #HotChips OR #HotChips2026 OR #HC38) lang:en -is:retweet"
+      },
+      {
+        "name": "chip-launches",
+        "query": "(\"Rubin GPU\" OR MI400 OR \"Crescent Island\" OR \"BlueField-4\" OR \"Spectrum-X\" OR \"LPDDR5X-PIM\" OR \"XCENA MX1\" OR \"Thor Ultra\" OR \"MAIA 200\" OR \"SN50 RDU\" OR \"eighth generation TPU\" OR ((Jalapeño OR Jalapeno) (OpenAI OR ASIC OR inference OR accelerator OR Broadcom OR NVIDIA))) lang:en -is:retweet"
+      },
+      {
+        "name": "cerebras",
+        "query": "(Cerebras OR \"wafer scale engine\" OR \"rack-scale architecture\" OR \"rack scale architecture\") (\"Hot Chips\" OR #HotChips2026 OR WSE OR launch OR unveil OR architecture) lang:en -is:retweet"
+      },
+      {
+        "name": "official-accounts",
+        "query": "(from:cerebras OR from:OpenAI OR from:nvidia OR from:AMD OR from:intel OR from:hotchipsorg OR from:Google OR from:Microsoft OR from:Meta OR from:Broadcom OR from:SamsungDSGlobal) (\"Hot Chips\" OR chip OR GPU OR accelerator OR architecture OR inference OR silicon) -is:retweet"
+      },
+      {
+        "name": "hardware-reporters",
+        "query": "(from:SemiAnalysis_ OR from:dylan522p OR from:ServeTheHome OR from:IanCutress OR from:PatrickMoorhead OR from:Patrick1Kennedy) (\"Hot Chips\" OR Cerebras OR Jalapeño OR Jalapeno OR MI400 OR Rubin OR BlueField OR MAIA OR TPU) -is:retweet"
+      }
+    ]
+  }
+}

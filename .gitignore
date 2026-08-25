@@ -1,0 +1,5 @@
+state/*
+!state/.gitkeep
+output/
+__pycache__/
+tests/__pycache__/
